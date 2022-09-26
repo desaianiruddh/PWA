@@ -1,18 +1,22 @@
-let CACHE_STATIC_NAME = 'static-v13';
-let CACHE_DYNAMIC_NAME = 'dynamic-v2';
+importScripts("/src/js/idb.js");
+importScripts("/src/js/utility.js");
+
+let CACHE_STATIC_NAME = "static-v13";
+let CACHE_DYNAMIC_NAME = "dynamic-v2";
 let STATIC_FILES = [
-  '/',
-  '/index.html',
-  '/offline.html',
-  '/src/js/app.js',
-  '/src/js/feed.js',
-  '/src/js/material.min.js',
-  '/src/css/app.css',
-  '/src/css/feed.css',
-  '/src/images/main-image.jpg',
-  'https://fonts.googleapis.com/css?family=Roboto:400,700',
-  'https://fonts.googleapis.com/icon?family=Material+Icons',
-  'https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css',
+  "/",
+  "/index.html",
+  "/offline.html",
+  "/src/js/idb.js",
+  "/src/js/app.js",
+  "/src/js/feed.js",
+  "/src/js/material.min.js",
+  "/src/css/app.css",
+  "/src/css/feed.css",
+  "/src/images/main-image.jpg",
+  "https://fonts.googleapis.com/css?family=Roboto:400,700",
+  "https://fonts.googleapis.com/icon?family=Material+Icons",
+  "https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css",
 ];
 
 const isInArray = (string, array) => {
@@ -34,24 +38,24 @@ const isInArray = (string, array) => {
 //   });
 // };
 
-self.addEventListener('install', function (event) {
-  console.log('[Service Worker] Installing Service Worker ...', event);
+self.addEventListener("install", function (event) {
+  console.log("[Service Worker] Installing Service Worker ...", event);
   event.waitUntil(
     caches.open(CACHE_STATIC_NAME).then(function (cache) {
-      console.log('[Service Worker] Precaching App Shell');
+      console.log("[Service Worker] Precaching App Shell");
       cache.addAll(STATIC_FILES);
     })
   );
 });
 
-self.addEventListener('activate', function (event) {
-  console.log('[Service Worker] Activating Service Worker ....', event);
+self.addEventListener("activate", function (event) {
+  console.log("[Service Worker] Activating Service Worker ....", event);
   event.waitUntil(
     caches.keys().then(function (keyList) {
       return Promise.all(
         keyList.map(function (key) {
           if (key !== CACHE_STATIC_NAME && key !== CACHE_DYNAMIC_NAME) {
-            console.log('[Service Worker] Removing old cache.', key);
+            console.log("[Service Worker] Removing old cache.", key);
             return caches.delete(key);
           }
         })
@@ -61,16 +65,33 @@ self.addEventListener('activate', function (event) {
   return self.clients.claim();
 });
 
-self.addEventListener('fetch', function (event) {
-  let url = 'https://httpbin.org/get';
+self.addEventListener("fetch", function (event) {
+  let url = "https://pwagram-9c659-default-rtdb.firebaseio.com/posts";
   if (event.request.url.indexOf(url) > -1) {
+    //with cache
+    // event.respondWith(
+    //   caches.open(CACHE_DYNAMIC_NAME).then(function (cache) {
+    //     return fetch(event.request).then(function (res) {
+    //       // trimCache(CACHE_DYNAMIC_NAME, 3);
+    //       cache.put(event.request, res.clone());
+    //       return res;
+    //     });
+    //   })
+    // );
+    //with indexDB
     event.respondWith(
-      caches.open(CACHE_DYNAMIC_NAME).then(function (cache) {
-        return fetch(event.request).then(function (res) {
-          // trimCache(CACHE_DYNAMIC_NAME, 3);
-          cache.put(event.request, res.clone());
-          return res;
-        });
+      fetch(event.request).then(function (res) {
+        let cloneRes = res.clone();
+        clearAllData("posts")
+          .then(() => {
+            return cloneRes.json();
+          })
+          .then((data) => {
+            for (let key in data) {
+              writeData("posts", data[key]);
+            }
+          });
+        return res;
       })
     );
   } else if (isInArray(event.request.url, STATIC_FILES)) {
@@ -91,8 +112,8 @@ self.addEventListener('fetch', function (event) {
             })
             .catch(function (err) {
               return caches.open(CACHE_STATIC_NAME).then(function (cache) {
-                if (event.request.headers.get('accept').includes('text/html')) {
-                  return cache.match('/offline.html');
+                if (event.request.headers.get("accept").includes("text/html")) {
+                  return cache.match("/offline.html");
                 }
               });
             });
