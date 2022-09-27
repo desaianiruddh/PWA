@@ -6,7 +6,7 @@ let closeCreatePostModalButton = document.querySelector(
 let sharedMomentsArea = document.querySelector("#shared-moments");
 
 const openCreatePostModal = () => {
-  createPostArea.style.display = "block";
+  createPostArea.style.transform = "translateY(0)";
   if (deferredPrompt) {
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then(function (choiceResult) {
@@ -28,7 +28,7 @@ const openCreatePostModal = () => {
   // }
 };
 const closeCreatePostModal = () => {
-  createPostArea.style.display = "none";
+  createPostArea.style.transform = "translateY(100vh)";
 };
 // cache will be saved on user request
 // const onSaveButtonClicked = (e) => {
