@@ -4,6 +4,9 @@ let closeCreatePostModalButton = document.querySelector(
   "#close-create-post-modal-btn"
 );
 let sharedMomentsArea = document.querySelector("#shared-moments");
+let form = document.querySelector("form");
+let titleInput = document.getElementById("title");
+let locationInput = document.getElementById("location");
 
 const openCreatePostModal = () => {
   createPostArea.style.transform = "translateY(0)";
@@ -127,3 +130,60 @@ if ("indexedDB" in window) {
     }
   });
 }
+//directly send data to the backend
+const sendData = () => {
+  console.log("sending data directly");
+  fetch("https://pwagram-9c659-default-rtdb.firebaseio.com/posts.json", {
+    method: "POST",
+    headers: {
+      "Content-type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      id: new Date().toISOString(),
+      title: titleInput.value,
+      location: locationInput.value,
+      image:
+        "https://firebasestorage.googleapis.com/v0/b/pwagram-9c659.appspot.com/o/sf-boat.jpg?alt=media&token=0594223f-ef76-4ca1-9e0b-5fdcd545249d",
+    }),
+  }).then((res) => {
+    console.log("Sent Data", res);
+    updateUI();
+  });
+};
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (titleInput.value.trim() === "" || locationInput.value.trim() === "") {
+    alert("enter valid data");
+    return;
+  }
+  closeCreatePostModal();
+  //save request into indexDB for syncing
+  if ("serviceWorker" in navigator || "SyncManager" in window) {           
+    navigator.serviceWorker.ready.then((sw) => {
+      let post = {
+        id: new Date().toISOString(),
+        title: titleInput.value,
+        location: locationInput.value,
+      };
+      writeData("sync-posts", post)
+        .then(() => {
+          console.log("sw", sw);
+          return sw.sync.register("sync-new-posts");
+        })
+        .then(() => {
+          let snackbarContainer = document.querySelector("#confirmation-toast");
+          let data = { message: "Your post was saved for syncing" };
+          snackbarContainer.MaterialSnackbar.showSnackbar(data);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    });
+  }
+  //if browser doesn't support sync manager
+  else {
+    sendData();
+  }
+});
